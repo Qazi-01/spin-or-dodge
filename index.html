@@ -60,7 +60,7 @@ function initAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 }
 
-// Synthetic shooting sound (short laser “pew”)
+// Synthetic shooting sound
 function playShootSound() {
   if (!audioCtx) return;
   const now = audioCtx.currentTime;
@@ -77,38 +77,30 @@ function playShootSound() {
   osc.stop(now + 0.1);
 }
 
-// Synthetic Wilhelm scream (short, harsh noise burst)
+// Synthetic Wilhelm scream (harsh noise burst)
 function playWilhelmScream() {
   if (!audioCtx) return;
   const now = audioCtx.currentTime;
   const duration = 0.6;
-  
-  // Harsh noise
   const bufferSize = audioCtx.sampleRate * duration;
   const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
   const data = noiseBuffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) {
     data[i] = (Math.random() * 2 - 1) * 0.5;
   }
-  
   const noise = audioCtx.createBufferSource();
   noise.buffer = noiseBuffer;
-  
-  // Bandpass filter to make it sound like a scream
   const filter = audioCtx.createBiquadFilter();
   filter.type = 'bandpass';
   filter.frequency.setValueAtTime(1200, now);
   filter.frequency.linearRampToValueAtTime(800, now + duration * 0.7);
   filter.Q.setValueAtTime(1.5, now);
-  
   const gain = audioCtx.createGain();
   gain.gain.setValueAtTime(0.4, now);
   gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
-  
   noise.connect(filter);
   filter.connect(gain);
   gain.connect(audioCtx.destination);
-  
   noise.start(now);
   noise.stop(now + duration);
 }
@@ -200,11 +192,13 @@ function resetGame() {
   scoreSpan.textContent = "0";
 }
 
-// ---------- INPUT HANDLING ----------
-function handleTap(e) {
+// ---------- UNIVERSAL INPUT (touch, mouse, keyboard) ----------
+function handleInput(e) {
+  // Prevent default actions (like page scroll on spacebar)
   e.preventDefault();
+  
   if (gameState === 'start') {
-    initAudio(); // initialise audio context on first interaction
+    initAudio();
     gameState = 'playing';
     return;
   }
@@ -219,7 +213,24 @@ function handleTap(e) {
     navigator.vibrate(10);
   }
 }
-canvas.addEventListener('pointerdown', handleTap);
+
+// Touch & mouse (already covers click)
+canvas.addEventListener('pointerdown', handleInput);
+
+// Keyboard support (Space, Enter, or any arrow key)
+window.addEventListener('keydown', function(e) {
+  // Accept Space, Enter, Arrow keys, or any key really
+  if (e.key === ' ' || e.key === 'Enter' || e.key.startsWith('Arrow')) {
+    handleInput(e);
+  }
+});
+
+// Prevent double-scroll on spacebar etc.
+window.addEventListener('keyup', function(e) {
+  if (e.key === ' ' || e.key === 'Enter' || e.key.startsWith('Arrow')) {
+    e.preventDefault();
+  }
+});
 
 // ---------- GAME LOOP ----------
 let lastTime = 0;
@@ -238,7 +249,7 @@ function gameLoop(timestamp) {
     while (spawnTimer >= spawnInterval) {
       spawnTimer -= spawnInterval;
       obstacles.push(new Obstacle());
-      playShootSound(); // shooting sound when obstacle spawns
+      playShootSound();
       speed = Math.min(CONFIG.maxSpeed, speed + CONFIG.speedIncrease);
       spawnInterval = 1 / (CONFIG.obstacleSpawnRate + score * CONFIG.spawnRateIncrease);
     }
@@ -252,7 +263,7 @@ function gameLoop(timestamp) {
       }
       if (checkCollision(obs)) {
         gameState = 'gameover';
-        playWilhelmScream(); // death scream
+        playWilhelmScream();
         if (score > highScore) {
           highScore = score;
           highScoreSpan.textContent = highScore;
@@ -295,7 +306,7 @@ function gameLoop(timestamp) {
     ctx.fillStyle = 'white';
     ctx.font = `${w*0.07}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('TAP TO START', centerX, centerY);
+    ctx.fillText('TAP OR PRESS ANY KEY', centerX, centerY);
   } else if (gameState === 'gameover') {
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, w, h);
@@ -304,7 +315,7 @@ function gameLoop(timestamp) {
     ctx.textAlign = 'center';
     ctx.fillText('GAME OVER', centerX, centerY - 20);
     ctx.font = `${w*0.05}px sans-serif`;
-    ctx.fillText('Tap to restart', centerX, centerY + 30);
+    ctx.fillText('Tap / Space to restart', centerX, centerY + 30);
     ctx.font = `${w*0.04}px sans-serif`;
     ctx.fillText(`High Score: ${highScore}`, centerX, centerY + 70);
   }
