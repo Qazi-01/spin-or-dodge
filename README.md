@@ -1,38 +1,57 @@
 # Spin‑or‑Dodge
 
-A minimal, one‑button arcade game where you control a spinning orb and dodge obstacles by tapping to reverse direction. Built entirely for mobile browsers.
+A minimal, one‑button arcade game where you control a spinning orb and dodge flying obstacles. Reverse your spin with a tap or a keystroke and survive as long as you can. Built entirely on a phone, plays everywhere.
 
 ## 🎮 How to Play
 
-- A white dot automatically rotates around a circle.
+- A white dot automatically spins around a circle.
 - Red triangles fly outward from the centre.
-- **Tap anywhere** to instantly reverse the dot’s direction (clockwise ↔ counter‑clockwise).
-- Survive as long as you can — each avoided obstacle earns 1 point.
-- Speed and spawn rate increase over time.
+- Reverse the spin direction to avoid them.
+- Each obstacle you dodge earns 1 point.
+- Speed and spawn rate increase over time – how long can you last?
+
+## 🎛️ Controls
+
+| Platform | Action |
+|----------|--------|
+| **Mobile / Touchscreen** | Tap anywhere |
+| **Desktop (Mouse)** | Click the game screen |
+| **Desktop (Keyboard)** | Press `Space`, `Enter`, or any Arrow key |
+
+> On game over, tap/press again to restart. First tap starts the game.
+
+## ✨ Features
+
+- **Spinning trail effect** – smooth motion blur
+- **Shooting sounds** – obstacles make a crisp “pew” when they spawn
+- **Wilhelm scream** – iconic scream on death
+- **Vibration** – haptic feedback on mobile when you reverse
+- **High score** – saved locally in your browser
+- **Responsive** – works on tiny screens, full desktop, and everything between
+- **No external dependencies** – pure HTML/CSS/JavaScript in one file
 
 ## 🚀 Play Now
 
-Play it on **itch.io**: [Spin‑or‑Dodge](https://yourusername.itch.io/spin-or-dodge)  
-*(Replace with your actual itch.io link)*
-
-Or try the live GitHub Pages version:  
-[https://qazi-01.github.io/spin-or-dodge/](https://qazi-01.github.io/spin-or-dodge/)
+- **itch.io**: [https://yourusername.itch.io/spin-or-dodge](https://yourusername.itch.io/spin-or-dodge)  
+  *(Replace with your actual itch.io link after publishing)*
+- **GitHub Pages**: [https://qazi-01.github.io/spin-or-dodge/](https://qazi-01.github.io/spin-or-dodge/)
 
 ## 🛠️ Tech
 
-- Vanilla HTML/CSS/JavaScript (no frameworks)
-- Canvas‑based rendering
-- Fully responsive, no external dependencies
-- Touch‑friendly, works on screens as small as 320px
+- Vanilla HTML, CSS, JavaScript (Canvas API)
+- Web Audio API for sound effects (no external audio files)
+- localStorage for high score persistence
+- `pointerdown` + `keydown` for unified input handling
+- Touch‑friendly with `touch-action: manipulation` to prevent double‑tap zoom
 
-## 📱 Development
+## 📱 Built on a Phone
 
-This game was built on a phone using Termux and tested directly in a mobile browser.
+This entire project – from code to sound design to publishing – was created using only a phone (4 GB RAM, no external keyboard). Tools used:
 
-To run locally:
-1. Download `index.html`.
-2. Open it in your mobile browser (Chrome/Safari).
+- **Termux** (code editor)
+- **Chrome** (testing & debugging)
+- **GitHub + GitHub Pages** (hosting & version control)
 
 ## 📄 License
 
-MIT — see [LICENSE](LICENSE) file.
+MIT – see [LICENSE](LICENSE) for details.
