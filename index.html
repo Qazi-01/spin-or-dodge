@@ -30,11 +30,15 @@
     font-family: sans-serif;
     font-size: 24px;
     pointer-events: none;
+    text-align: center;
   }
 </style>
 </head>
 <body>
-<div id="ui">Score: <span id="score">0</span></div>
+<div id="ui">
+  <div>Score: <span id="score">0</span></div>
+  <div style="font-size:16px; opacity:0.8;">Best: <span id="highScore">0</span></div>
+</div>
 <canvas id="gameCanvas"></canvas>
 <script>
 const CONFIG = {
@@ -49,9 +53,71 @@ const CONFIG = {
   maxSpeed: 9
 };
 
+// ---------- AUDIO SETUP ----------
+let audioCtx = null;
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+// Synthetic shooting sound (short laser “pew”)
+function playShootSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(800, now);
+  osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.1);
+}
+
+// Synthetic Wilhelm scream (short, harsh noise burst)
+function playWilhelmScream() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const duration = 0.6;
+  
+  // Harsh noise
+  const bufferSize = audioCtx.sampleRate * duration;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * 0.5;
+  }
+  
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = noiseBuffer;
+  
+  // Bandpass filter to make it sound like a scream
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(1200, now);
+  filter.frequency.linearRampToValueAtTime(800, now + duration * 0.7);
+  filter.Q.setValueAtTime(1.5, now);
+  
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.4, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  
+  noise.start(now);
+  noise.stop(now + duration);
+}
+
+// ---------- GAME STATE ----------
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreSpan = document.getElementById('score');
+const highScoreSpan = document.getElementById('highScore');
 
 let w, h, centerX, centerY, orbitRadius;
 let angle = 0;
@@ -59,9 +125,15 @@ let direction = 1;
 let speed = CONFIG.baseSpeed;
 let score = 0;
 let obstacles = [];
-let gameOver = false;
 let spawnTimer = 0;
 let spawnInterval = 1 / CONFIG.obstacleSpawnRate;
+
+let gameState = 'start';  // 'start', 'playing', 'gameover'
+let highScore = 0;
+try {
+  highScore = parseInt(localStorage.getItem('spinHighScore')) || 0;
+  highScoreSpan.textContent = highScore;
+} catch (e) {}
 
 function resize() {
   const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
@@ -123,23 +195,33 @@ function resetGame() {
   speed = CONFIG.baseSpeed;
   score = 0;
   obstacles = [];
-  gameOver = false;
   spawnTimer = 0;
   spawnInterval = 1 / CONFIG.obstacleSpawnRate;
   scoreSpan.textContent = "0";
 }
 
+// ---------- INPUT HANDLING ----------
 function handleTap(e) {
   e.preventDefault();
-  if (gameOver) {
-    resetGame();
+  if (gameState === 'start') {
+    initAudio(); // initialise audio context on first interaction
+    gameState = 'playing';
     return;
   }
+  if (gameState === 'gameover') {
+    resetGame();
+    gameState = 'playing';
+    return;
+  }
+  // playing: reverse direction
   direction *= -1;
+  if (navigator.vibrate) {
+    navigator.vibrate(10);
+  }
 }
-canvas.addEventListener('click', handleTap);
-canvas.addEventListener('touchstart', handleTap, {passive: false});
+canvas.addEventListener('pointerdown', handleTap);
 
+// ---------- GAME LOOP ----------
 let lastTime = 0;
 function gameLoop(timestamp) {
   if (!lastTime) lastTime = timestamp;
@@ -147,7 +229,7 @@ function gameLoop(timestamp) {
   if (dt > 0.1) dt = 0.1;
   lastTime = timestamp;
 
-  if (!gameOver) {
+  if (gameState === 'playing') {
     angle += direction * speed * dt;
     angle = angle % (Math.PI * 2);
     if (angle < 0) angle += Math.PI * 2;
@@ -156,6 +238,7 @@ function gameLoop(timestamp) {
     while (spawnTimer >= spawnInterval) {
       spawnTimer -= spawnInterval;
       obstacles.push(new Obstacle());
+      playShootSound(); // shooting sound when obstacle spawns
       speed = Math.min(CONFIG.maxSpeed, speed + CONFIG.speedIncrease);
       spawnInterval = 1 / (CONFIG.obstacleSpawnRate + score * CONFIG.spawnRateIncrease);
     }
@@ -168,22 +251,34 @@ function gameLoop(timestamp) {
         return false;
       }
       if (checkCollision(obs)) {
-        gameOver = true;
+        gameState = 'gameover';
+        playWilhelmScream(); // death scream
+        if (score > highScore) {
+          highScore = score;
+          highScoreSpan.textContent = highScore;
+          try { localStorage.setItem('spinHighScore', highScore); } catch(e) {}
+        }
         return false;
       }
       return true;
     });
   }
 
-  ctx.clearRect(0, 0, w, h);
+  // Trail effect
+  ctx.fillStyle = 'rgba(26, 26, 46, 0.15)';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw orbit
   ctx.beginPath();
   ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
   ctx.strokeStyle = '#0f3460';
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  // Draw obstacles
   obstacles.forEach(obs => obs.draw(ctx));
 
+  // Draw player
   const player = playerPosition();
   ctx.beginPath();
   ctx.arc(player.x, player.y, CONFIG.playerSize, 0, Math.PI*2);
@@ -193,7 +288,15 @@ function gameLoop(timestamp) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  if (gameOver) {
+  // Overlay messages
+  if (gameState === 'start') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'white';
+    ctx.font = `${w*0.07}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('TAP TO START', centerX, centerY);
+  } else if (gameState === 'gameover') {
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = 'white';
@@ -202,6 +305,8 @@ function gameLoop(timestamp) {
     ctx.fillText('GAME OVER', centerX, centerY - 20);
     ctx.font = `${w*0.05}px sans-serif`;
     ctx.fillText('Tap to restart', centerX, centerY + 30);
+    ctx.font = `${w*0.04}px sans-serif`;
+    ctx.fillText(`High Score: ${highScore}`, centerX, centerY + 70);
   }
 
   requestAnimationFrame(gameLoop);
