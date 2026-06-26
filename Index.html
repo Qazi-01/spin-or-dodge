@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Spin‑or‑Dodge</title>
+<style>
+  body {
+    margin: 0;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  canvas {
+    display: block;
+    background: #1a1a2e;
+    border-radius: 50%;
+    box-shadow: 0 0 30px rgba(255,255,255,0.1);
+  }
+  #ui {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: sans-serif;
+    font-size: 24px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="ui">Score: <span id="score">0</span></div>
+<canvas id="gameCanvas"></canvas>
+<script>
+const CONFIG = {
+  radius: 0.38,
+  baseSpeed: 2.5,
+  speedIncrease: 0.03,
+  obstacleSpawnRate: 1.2,
+  spawnRateIncrease: 0.02,
+  playerSize: 10,
+  obstacleSize: 14,
+  tolerance: 0.12,
+  maxSpeed: 9
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreSpan = document.getElementById('score');
+
+let w, h, centerX, centerY, orbitRadius;
+let angle = 0;
+let direction = 1;
+let speed = CONFIG.baseSpeed;
+let score = 0;
+let obstacles = [];
+let gameOver = false;
+let spawnTimer = 0;
+let spawnInterval = 1 / CONFIG.obstacleSpawnRate;
+
+function resize() {
+  const size = Math.min(window.innerWidth, window.innerHeight) * 0.9;
+  canvas.width = size;
+  canvas.height = size;
+  w = size;
+  h = size;
+  centerX = w / 2;
+  centerY = h / 2;
+  orbitRadius = w * CONFIG.radius;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function playerPosition() {
+  return {
+    x: centerX + orbitRadius * Math.cos(angle),
+    y: centerY + orbitRadius * Math.sin(angle)
+  };
+}
+
+class Obstacle {
+  constructor() {
+    this.angle = Math.random() * Math.PI * 2;
+    this.dist = 0;
+    this.speed = orbitRadius * 0.8;
+  }
+  update(dt) {
+    this.dist += this.speed * dt;
+    return this.dist < orbitRadius * 1.15;
+  }
+  draw(ctx) {
+    const x = centerX + this.dist * Math.cos(this.angle);
+    const y = centerY + this.dist * Math.sin(this.angle);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(this.angle + Math.PI/2);
+    ctx.fillStyle = '#e94560';
+    ctx.beginPath();
+    ctx.moveTo(0, -CONFIG.obstacleSize);
+    ctx.lineTo(-CONFIG.obstacleSize*0.6, CONFIG.obstacleSize*0.7);
+    ctx.lineTo(CONFIG.obstacleSize*0.6, CONFIG.obstacleSize*0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function checkCollision(obstacle) {
+  let diff = Math.abs(angle - obstacle.angle);
+  if (diff > Math.PI) diff = 2 * Math.PI - diff;
+  const nearRadius = Math.abs(obstacle.dist - orbitRadius) < CONFIG.obstacleSize * 1.2;
+  return diff < CONFIG.tolerance && nearRadius;
+}
+
+function resetGame() {
+  angle = 0;
+  direction = 1;
+  speed = CONFIG.baseSpeed;
+  score = 0;
+  obstacles = [];
+  gameOver = false;
+  spawnTimer = 0;
+  spawnInterval = 1 / CONFIG.obstacleSpawnRate;
+  scoreSpan.textContent = "0";
+}
+
+function handleTap(e) {
+  e.preventDefault();
+  if (gameOver) {
+    resetGame();
+    return;
+  }
+  direction *= -1;
+}
+canvas.addEventListener('click', handleTap);
+canvas.addEventListener('touchstart', handleTap, {passive: false});
+
+let lastTime = 0;
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  let dt = (timestamp - lastTime) / 1000;
+  if (dt > 0.1) dt = 0.1;
+  lastTime = timestamp;
+
+  if (!gameOver) {
+    angle += direction * speed * dt;
+    angle = angle % (Math.PI * 2);
+    if (angle < 0) angle += Math.PI * 2;
+
+    spawnTimer += dt;
+    while (spawnTimer >= spawnInterval) {
+      spawnTimer -= spawnInterval;
+      obstacles.push(new Obstacle());
+      speed = Math.min(CONFIG.maxSpeed, speed + CONFIG.speedIncrease);
+      spawnInterval = 1 / (CONFIG.obstacleSpawnRate + score * CONFIG.spawnRateIncrease);
+    }
+
+    obstacles = obstacles.filter(obs => {
+      const alive = obs.update(dt);
+      if (!alive) {
+        score++;
+        scoreSpan.textContent = score;
+        return false;
+      }
+      if (checkCollision(obs)) {
+        gameOver = true;
+        return false;
+      }
+      return true;
+    });
+  }
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
+  ctx.strokeStyle = '#0f3460';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  obstacles.forEach(obs => obs.draw(ctx));
+
+  const player = playerPosition();
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, CONFIG.playerSize, 0, Math.PI*2);
+  ctx.fillStyle = '#f5f5f5';
+  ctx.fill();
+  ctx.strokeStyle = '#e94560';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'white';
+    ctx.font = `${w*0.08}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', centerX, centerY - 20);
+    ctx.font = `${w*0.05}px sans-serif`;
+    ctx.fillText('Tap to restart', centerX, centerY + 30);
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
