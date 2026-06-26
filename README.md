@@ -32,7 +32,7 @@ A minimal, one‑button arcade game where you control a spinning orb and dodge f
 
 ## 🚀 Play Now
 
-- **itch.io**: [https://qazi-01.itch.io/spin-or-dodge](https://qazi-01/spin-or-dodge)  
+- **itch.io**: [https://qazi-01.itch.io/spin-or-dodge](https://qazi-01/spin-or-dodge/)  
   *(Replace with your actual itch.io link after publishing)*
 - **GitHub Pages**: [https://qazi-01.github.io/spin-or-dodge/](https://qazi-01.github.io/spin-or-dodge/)
 
