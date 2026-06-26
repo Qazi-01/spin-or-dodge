@@ -16,7 +16,7 @@ Play it on **itch.io**: [Spin‑or‑Dodge](https://yourusername.itch.io/spin-or
 *(Replace with your actual itch.io link)*
 
 Or try the live GitHub Pages version:  
-[https://yourusername.github.io/spin-or-dodge](https://yourusername.github.io/spin-or-dodge)
+[https://qazi-01.github.io/spin-or-dodge/](https://qazi-01.github.io/spin-or-dodge/)
 
 ## 🛠️ Tech
 
@@ -27,7 +27,7 @@ Or try the live GitHub Pages version:
 
 ## 📱 Development
 
-This game was built on a phone using [Termux](https://play.google.com/store/apps/details?id=com.foxdebug.acode) (or any text editor) and tested directly in a mobile browser.
+This game was built on a phone using Termux and tested directly in a mobile browser.
 
 To run locally:
 1. Download `index.html`.
